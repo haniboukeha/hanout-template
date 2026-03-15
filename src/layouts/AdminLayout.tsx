@@ -20,6 +20,14 @@ import { useNotificationStore } from '../store/useNotificationStore';
 import { cn } from '../utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const menuItems = [
+  { name: 'Dashboard', icon: LayoutDashboard, href: '/admin' },
+  { name: 'Products', icon: Package, href: '/admin/products' },
+  { name: 'Orders', icon: ShoppingBag, href: '/admin/orders' },
+  { name: 'Customers', icon: Users, href: '/admin/customers' },
+  { name: 'Settings', icon: Settings, href: '/admin/settings' },
+];
+
 const AdminLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -35,13 +43,6 @@ const AdminLayout = () => {
 
   const unreadCount = getUnreadCount();
 
-  const menuItems = [
-    { name: 'Dashboard', icon: LayoutDashboard, href: '/admin' },
-    { name: 'Products', icon: Package, href: '/admin/products' },
-    { name: 'Orders', icon: ShoppingBag, href: '/admin/orders' },
-    { name: 'Customers', icon: Users, href: '/admin/customers' },
-    { name: 'Settings', icon: Settings, href: '/admin/settings' },
-  ];
 
   const handleLogout = () => {
     logout();

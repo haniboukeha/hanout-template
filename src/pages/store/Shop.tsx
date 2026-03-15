@@ -5,6 +5,93 @@ import { useProductStore } from '../../store/useProductStore';
 import { cn } from '../../utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const priceRanges = [
+  { label: 'All', min: 0, max: Infinity },
+  { label: 'Under 5,000 DA', min: 0, max: 5000 },
+  { label: '5,000 DA - 10,000 DA', min: 5000, max: 10000 },
+  { label: '10,000 DA - 30,000 DA', min: 10000, max: 30000 },
+  { label: 'Over 30,000 DA', min: 30000, max: Infinity },
+];
+
+interface FilterContentProps {
+  categories: string[];
+  selectedCategory: string;
+  setSelectedCategory: (category: string) => void;
+  priceRange: string;
+  setPriceRange: (range: string) => void;
+  setIsMobileFiltersOpen: (isOpen: boolean) => void;
+}
+
+const FilterContent: React.FC<FilterContentProps> = ({
+  categories,
+  selectedCategory,
+  setSelectedCategory,
+  priceRange,
+  setPriceRange,
+  setIsMobileFiltersOpen,
+}) => (
+  <div className="space-y-10">
+    <div>
+      <div className="flex items-center gap-2 text-slate-900 font-bold mb-6 text-lg">
+        <SlidersHorizontal size={20} className="text-primary-600" />
+        <span>Filters</span>
+      </div>
+      
+      <div className="space-y-8">
+        {/* Category Filter */}
+        <div>
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4 flex items-center gap-2">
+            <Tag size={14} /> Category
+          </h3>
+          <div className="flex flex-wrap lg:flex-col gap-2">
+            {categories.map((category) => (
+              <button
+                key={category}
+                onClick={() => {
+                  setSelectedCategory(category);
+                  setIsMobileFiltersOpen(false);
+                }}
+                className={cn(
+                  "px-4 py-2.5 rounded-xl text-sm font-bold transition-all text-left border",
+                  selectedCategory === category 
+                    ? "bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-200" 
+                    : "text-slate-600 bg-white border-slate-100 hover:border-primary-200 hover:text-primary-600"
+                )}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Price Filter */}
+        <div>
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4">Price Range</h3>
+          <div className="flex flex-wrap gap-2">
+            {priceRanges.map((range) => (
+              <button
+                key={range.label}
+                onClick={() => {
+                  setPriceRange(range.label);
+                  setIsMobileFiltersOpen(false);
+                }}
+                className={cn(
+                  "px-4 py-2 rounded-xl text-xs font-bold transition-all border",
+                  priceRange === range.label 
+                    ? "bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-200" 
+                    : "text-slate-500 bg-white border-slate-100 hover:border-slate-300"
+                )}
+              >
+                {range.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 const Shop = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -16,13 +103,6 @@ const Shop = () => {
 
   const categories = ['All', ...Array.from(new Set(products.map(p => p.category)))];
   
-  const priceRanges = [
-    { label: 'All', min: 0, max: Infinity },
-    { label: 'Under 5,000 DA', min: 0, max: 5000 },
-    { label: '5,000 DA - 10,000 DA', min: 5000, max: 10000 },
-    { label: '10,000 DA - 30,000 DA', min: 10000, max: 30000 },
-    { label: 'Over 30,000 DA', min: 30000, max: Infinity },
-  ];
 
   const filteredProducts = useMemo(() => {
     let result = [...products];
@@ -63,68 +143,6 @@ const Shop = () => {
     return result;
   }, [searchQuery, selectedCategory, priceRange, sortBy, products]);
 
-  const FilterContent = () => (
-    <div className="space-y-10">
-      <div>
-        <div className="flex items-center gap-2 text-slate-900 font-bold mb-6 text-lg">
-          <SlidersHorizontal size={20} className="text-primary-600" />
-          <span>Filters</span>
-        </div>
-        
-        <div className="space-y-8">
-          {/* Category Filter */}
-          <div>
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4 flex items-center gap-2">
-              <Tag size={14} /> Category
-            </h3>
-            <div className="flex flex-wrap lg:flex-col gap-2">
-              {categories.map((category) => (
-                <button
-                  key={category}
-                  onClick={() => {
-                    setSelectedCategory(category);
-                    setIsMobileFiltersOpen(false);
-                  }}
-                  className={cn(
-                    "px-4 py-2.5 rounded-xl text-sm font-bold transition-all text-left border",
-                    selectedCategory === category 
-                      ? "bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-200" 
-                      : "text-slate-600 bg-white border-slate-100 hover:border-primary-200 hover:text-primary-600"
-                  )}
-                >
-                  {category}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Price Filter */}
-          <div>
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4">Price Range</h3>
-            <div className="flex flex-wrap gap-2">
-              {priceRanges.map((range) => (
-                <button
-                  key={range.label}
-                  onClick={() => {
-                    setPriceRange(range.label);
-                    setIsMobileFiltersOpen(false);
-                  }}
-                  className={cn(
-                    "px-4 py-2 rounded-xl text-xs font-bold transition-all border",
-                    priceRange === range.label 
-                      ? "bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-200" 
-                      : "text-slate-500 bg-white border-slate-100 hover:border-slate-300"
-                  )}
-                >
-                  {range.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
@@ -179,7 +197,14 @@ const Shop = () => {
       <div className="flex flex-col lg:flex-row gap-12">
         {/* Desktop Sidebar Filters */}
         <aside className="hidden lg:block w-64 flex-shrink-0">
-          <FilterContent />
+          <FilterContent 
+            categories={categories}
+            selectedCategory={selectedCategory}
+            setSelectedCategory={setSelectedCategory}
+            priceRange={priceRange}
+            setPriceRange={setPriceRange}
+            setIsMobileFiltersOpen={setIsMobileFiltersOpen}
+          />
         </aside>
 
         {/* Mobile Filter Sheet */}
@@ -207,7 +232,14 @@ const Shop = () => {
                   </button>
                 </div>
                 <div className="overflow-y-auto flex-grow p-8 pb-12">
-                  <FilterContent />
+                  <FilterContent 
+                    categories={categories}
+                    selectedCategory={selectedCategory}
+                    setSelectedCategory={setSelectedCategory}
+                    priceRange={priceRange}
+                    setPriceRange={setPriceRange}
+                    setIsMobileFiltersOpen={setIsMobileFiltersOpen}
+                  />
                 </div>
               </motion.div>
             </>
