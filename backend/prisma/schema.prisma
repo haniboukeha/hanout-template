@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("user")
+  phone     String?
+  address   String?
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]
+  cart      CartItem[]
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  price       Float
+  imageUrl    String
+  images      Json?
+  category    String
+  rating      Float    @default(4.5)
+  reviewsCount Int     @default(0)
+  stock       Int      @default(0)
+  featured    Boolean  @default(false)
+  sizes       Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  quantity  Int      @default(1)
+  size      String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, productId, size])
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  userId          String?
+  customerName    String
+  email           String
+  phone           String
+  shippingAddress String
+  total           Float
+  status          String      @default("Processing")
+  deliveryMethod  String?
+  wilaya          String?
+  city            String?
+  user            User?       @relation(fields: [userId], references: [id])
+  items           OrderItem[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  size      String?
+  price     Float
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id])
+
+  @@unique([orderId, productId, size])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  title     String
+  message   String
+  type      String   @default("info")
+  read      Boolean  @default(false)
+  orderId   String?
+  createdAt DateTime @default(now())
+}
+
+model Setting {
+  id                      String  @id @default(cuid())
+  storeName               String  @default("HANOUT Premium Store")
+  contactEmail            String  @default("support@hanout.com")
+  contactPhone            String  @default("+213 555 123 456")
+  currency                String  @default("DZD")
+  timezone                String  @default("Africa/Algiers")
+  freeShippingThreshold   Float   @default(20000)
+  defaultDeskPrice        Float   @default(500)
+  defaultHomePrice        Float   @default(800)
+  maintenanceMode         Boolean @default(false)
+  notificationsEmail      Boolean @default(true)
+  notificationsPush       Boolean @default(true)
+  updatedAt               DateTime @updatedAt
+}
