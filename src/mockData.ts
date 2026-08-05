@@ -4,7 +4,7 @@ export const MOCK_PRODUCTS: Product[] = [
   {
     id: '1',
     name: 'Minimalist Leather Watch',
-    description: 'A timeless classic with a genuine leather strap and sapphire crystal glass. Features a Japanese quartz movement and a water-resistant stainless steel case.',
+    description: 'A timeless classic with a genuine leather strap and sapphire crystal glass. Features a Japanese quartz movement and a water-resistant stainless steel case. Perfect for both casual and formal occasions.',
     price: 18900,
     image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=800&auto=format&fit=crop',
     images: [
@@ -22,7 +22,7 @@ export const MOCK_PRODUCTS: Product[] = [
   {
     id: '2',
     name: 'Noise Cancelling Headphones',
-    description: 'Experience pure sound with industry-leading noise cancellation technology. Over-ear design with 40-hour battery life and quick charging capabilities.',
+    description: 'Experience pure sound with industry-leading noise cancellation technology. Over-ear design with 40-hour battery life and quick charging capabilities. Includes carrying case and aux cable.',
     price: 29900,
     image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800&auto=format&fit=crop',
     images: [
@@ -40,7 +40,7 @@ export const MOCK_PRODUCTS: Product[] = [
   {
     id: '3',
     name: 'Premium Cotton Hoodie',
-    description: 'Handcrafted from 100% organic cotton for ultimate comfort and durability. Double-lined hood and reinforced stitching for a premium feel.',
+    description: 'Handcrafted from 100% organic cotton for ultimate comfort and durability. Double-lined hood and reinforced stitching for a premium feel. Ethically made in Algeria.',
     price: 8500,
     image: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?q=80&w=800&auto=format&fit=crop',
     images: [
@@ -59,7 +59,7 @@ export const MOCK_PRODUCTS: Product[] = [
   {
     id: '4',
     name: 'Ergonomic Desk Chair',
-    description: 'Designed for long hours of focus with adjustable lumbar support. Breathable mesh back and high-density foam seat for maximum productivity.',
+    description: 'Designed for long hours of focus with adjustable lumbar support. Breathable mesh back and high-density foam seat for maximum productivity. 5-year warranty included.',
     price: 45000,
     image: 'https://images.unsplash.com/photo-1505843490701-5be550b23021?q=80&w=800&auto=format&fit=crop',
     images: [
@@ -75,7 +75,7 @@ export const MOCK_PRODUCTS: Product[] = [
   {
     id: '5',
     name: 'Canvas Sneakers',
-    description: 'Versatile and lightweight sneakers for everyday wear. Vulcanized rubber sole and breathable canvas upper.',
+    description: 'Versatile and lightweight sneakers for everyday wear. Vulcanized rubber sole and breathable canvas upper. Available in classic colors.',
     price: 5500,
     image: 'https://images.unsplash.com/photo-1525966222134-fcfa99b8ae77?q=80&w=800&auto=format&fit=crop',
     images: [
@@ -89,5 +89,97 @@ export const MOCK_PRODUCTS: Product[] = [
     stock: 30,
     sizes: ['40', '41', '42', '43', '44'],
     createdAt: '2023-11-25T10:00:00Z',
-  }
+  },
+  {
+    id: '6',
+    name: 'Wireless Charging Pad',
+    description: 'Fast Qi wireless charging pad with anti-slip surface. Compatible with all Qi-enabled devices. LED indicator and overcharge protection.',
+    price: 3200,
+    image: 'https://images.unsplash.com/photo-1586816879360-004f5b480c3a?q=80&w=800&auto=format&fit=crop',
+    category: 'Electronics',
+    rating: 4.4,
+    reviewsCount: 89,
+    stock: 45,
+    featured: true,
+    createdAt: '2024-02-01T10:00:00Z',
+  },
+  {
+    id: '7',
+    name: 'Linen Blend Shirt',
+    description: 'Breathable linen blend shirt perfect for Algerian summers. Relaxed fit with button-down collar and chest pocket detail.',
+    price: 6200,
+    image: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=800&auto=format&fit=crop',
+    category: 'Apparel',
+    rating: 4.6,
+    reviewsCount: 72,
+    stock: 18,
+    sizes: ['S', 'M', 'L', 'XL'],
+    createdAt: '2024-02-10T10:00:00Z',
+  },
+  {
+    id: '8',
+    name: 'Ceramic Plant Pot Set',
+    description: 'Minimalist ceramic pots in matte finish. Set of 3 sizes, perfect for indoor plants. Includes drainage hole and saucer.',
+    price: 4500,
+    image: 'https://images.unsplash.com/photo-1485955900006-10f4d324d411?q=80&w=800&auto=format&fit=crop',
+    category: 'Lifestyle',
+    rating: 4.8,
+    reviewsCount: 34,
+    stock: 12,
+    createdAt: '2024-01-20T10:00:00Z',
+  },
+  {
+    id: '9',
+    name: 'Leather Crossbody Bag',
+    description: 'Genuine leather crossbody with adjustable strap and multiple compartments. Handcrafted by Algerian artisans.',
+    price: 12500,
+    image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?q=80&w=800&auto=format&fit=crop',
+    category: 'Accessories',
+    rating: 4.9,
+    reviewsCount: 56,
+    stock: 9,
+    featured: true,
+    createdAt: '2024-02-15T10:00:00Z',
+  },
+  {
+    id: '10',
+    name: 'Smart Desk Lamp',
+    description: 'LED desk lamp with wireless charging, touch control, and adjustable color temperature. USB-C powered.',
+    price: 7800,
+    image: 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?q=80&w=800&auto=format&fit=crop',
+    category: 'Furniture',
+    rating: 4.7,
+    reviewsCount: 41,
+    stock: 22,
+    createdAt: '2024-02-20T10:00:00Z',
+  },
+  {
+    id: '11',
+    name: 'Organic Cotton Tote',
+    description: 'Eco-friendly organic cotton tote bag with reinforced handles. Spacious interior with zip pocket.',
+    price: 1800,
+    image: 'https://images.unsplash.com/photo-1590874103328-eac38a683ce7?q=80&w=800&auto=format&fit=crop',
+    category: 'Accessories',
+    rating: 4.5,
+    reviewsCount: 28,
+    stock: 50,
+    createdAt: '2024-02-25T10:00:00Z',
+  },
+  {
+    id: '12',
+    name: 'Bluetooth Speaker Mini',
+    description: 'Compact waterproof Bluetooth speaker with 12h battery. 360° sound and rugged design for outdoor use.',
+    price: 6500,
+    image: 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?q=80&w=800&auto=format&fit=crop',
+    category: 'Electronics',
+    rating: 4.6,
+    reviewsCount: 103,
+    stock: 15,
+    featured: true,
+    createdAt: '2024-03-01T10:00:00Z',
+  },
 ];
+
+export const CATEGORIES = Array.from(new Set(MOCK_PRODUCTS.map(p => p.category)));
+
+export const FEATURED_PRODUCTS = MOCK_PRODUCTS.filter(p => p.featured);
