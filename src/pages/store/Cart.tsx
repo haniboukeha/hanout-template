@@ -5,18 +5,24 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useOrderStore } from '../../store/useOrderStore';
 import { useProductStore } from '../../store/useProductStore';
 import { useNotificationStore } from '../../store/useNotificationStore';
+import { useSettingsStore } from '../../store/useSettingsStore';
 import { useToastStore } from '../../store/useToastStore';
 import { formatCurrency, cn } from '../../utils';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ALGERIA_WILAYAS } from '../../data/algeria-provinces';
 import { ALGERIA_COMMUNES } from '../../data/algeria-communes';
 import { getDeliveryPrice } from '../../utils/delivery';
 import type { DeliveryMethod } from '../../utils/delivery';
 import { validateCheckout } from '../../lib/validators';
+import { api } from '../../lib/api';
+import { ALLOW_MOCK } from '../../lib/env';
 
 const Cart = () => {
   const [step, setStep] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
+  const [placedOrder, setPlacedOrder] = useState<{ id: string; total: number } | null>(null);
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const [formData, setFormData] = useState({
     fullName: user?.name || '',
@@ -36,9 +42,11 @@ const Cart = () => {
   const { addToast } = useToastStore();
 
   const subtotal = getTotal();
+  const { settings } = useSettingsStore();
+  const freeThreshold = settings.freeShippingThreshold;
   const wilayaId = useMemo(() => formData.wilaya.split(' - ')[0], [formData.wilaya]);
   const baseShipping = getDeliveryPrice(wilayaId, formData.deliveryMethod);
-  const shipping = subtotal > 20000 ? 0 : baseShipping;
+  const shipping = subtotal > freeThreshold ? 0 : baseShipping;
   const total = subtotal + shipping;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -61,7 +69,39 @@ const Cart = () => {
     setStep(2);
   };
 
-  const handleCheckout = (e: React.FormEvent) => {
+  const finalizeLocal = (orderId: string, orderTotal: number) => {
+    const newOrder = {
+      id: orderId,
+      customerName: formData.fullName,
+      email: formData.email,
+      shippingAddress: `${formData.address}, ${formData.city}, ${formData.wilaya} (${formData.deliveryMethod})`,
+      phone: formData.phone,
+      items: [...items],
+      total: orderTotal,
+      status: 'Processing' as const,
+      createdAt: new Date().toISOString(),
+    };
+
+    addOrder(newOrder);
+    items.forEach((item) => reduceStock(item.id, item.quantity));
+
+    addNotification({
+      id: `NOT-${Date.now()}`,
+      title: 'New Order Received',
+      message: `${formData.fullName} placed order ${orderId} for ${formatCurrency(orderTotal)}`,
+      type: 'success',
+      read: false,
+      createdAt: new Date().toISOString(),
+      orderId,
+    });
+
+    addToast({ message: `Order ${orderId} placed successfully!`, type: 'success', title: 'Order Confirmed' });
+    setPlacedOrder({ id: orderId, total: orderTotal });
+    setStep(3);
+    clearCart();
+  };
+
+  const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const validation = validateCheckout({
@@ -79,35 +119,44 @@ const Cart = () => {
       return;
     }
 
-    const orderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
-    const newOrder = {
-      id: orderId,
-      customerName: formData.fullName,
-      email: formData.email,
-      shippingAddress: `${formData.address}, ${formData.city}, ${formData.wilaya} (${formData.deliveryMethod})`,
-      phone: formData.phone,
-      items: [...items],
-      total,
-      status: 'Processing' as const,
-      createdAt: new Date().toISOString(),
-    };
+    if (!user) {
+      addToast({ message: 'Please sign in to complete your order', type: 'warning' });
+      navigate('/login', { state: { from: '/cart' } });
+      return;
+    }
 
-    addOrder(newOrder);
-    items.forEach((item) => reduceStock(item.id, item.quantity));
+    setSubmitting(true);
+    try {
+      const res = await api.checkout({
+        items: items.map((i) => ({ productId: i.id, quantity: i.quantity, size: i.selectedSize })),
+        customerName: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        wilaya: formData.wilaya,
+        city: formData.city,
+        deliveryMethod: formData.deliveryMethod,
+      });
 
-    addNotification({
-      id: `NOT-${Date.now()}`,
-      title: 'New Order Received',
-      message: `${formData.fullName} placed order ${orderId} for ${formatCurrency(total)}`,
-      type: 'success',
-      read: false,
-      createdAt: new Date().toISOString(),
-      orderId,
-    });
-
-    addToast({ message: `Order ${orderId} placed successfully!`, type: 'success', title: 'Order Confirmed' });
-    setStep(3);
-    clearCart();
+      const order = res.data;
+      const orderId = String(order.id).slice(0, 8).toUpperCase();
+      addToast({ message: `Order ${orderId} placed successfully!`, type: 'success', title: 'Order Confirmed' });
+      setPlacedOrder({ id: orderId, total: order.total });
+      setStep(3);
+      clearCart();
+      // Refresh server truth for stock + notifications
+      useProductStore.getState().fetchProducts();
+      useNotificationStore.getState().fetchNotifications();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '';
+      if (msg === 'NETWORK_ERROR' && ALLOW_MOCK) {
+        finalizeLocal(`ORD-${Math.floor(1000 + Math.random() * 9000)}`, total);
+      } else {
+        addToast({ message: msg || 'Checkout failed. Please try again.', type: 'error', title: 'Order Failed' });
+      }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (step === 3) {
@@ -127,7 +176,7 @@ const Cart = () => {
         </p>
         <div className="mt-8 inline-flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-600">
           <PackageIcon />
-          Order ID: <span className="font-black text-slate-900">{`ORD-XXXX`}</span> • {formatCurrency(total)}
+          Order ID: <span className="font-black text-slate-900">{placedOrder?.id || 'PENDING'}</span> • {formatCurrency(placedOrder?.total ?? total)}
         </div>
         <div className="mt-10 flex flex-col sm:flex-row justify-center gap-4 px-6">
           <Link to="/orders" className="btn-primary px-8 py-4">
@@ -295,7 +344,7 @@ const Cart = () => {
             <div className="space-y-4 mb-8">
               <div className="flex justify-between text-sm"><span className="text-slate-400">Subtotal</span><span className="font-bold">{formatCurrency(subtotal)}</span></div>
               <div className="flex justify-between text-sm"><span className="text-slate-400">Shipping</span><span className="font-bold text-emerald-400">{shipping === 0 ? 'Free' : formatCurrency(shipping)}</span></div>
-              {shipping === 0 && subtotal > 0 && <p className="text-[11px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-2">🎉 Free shipping over 20,000 DA applied</p>}
+              {shipping === 0 && subtotal > 0 && <p className="text-[11px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-2">🎉 Free shipping over {formatCurrency(freeThreshold)} applied</p>}
               <div className="pt-4 border-t border-white/10 flex justify-between items-baseline">
                 <span className="text-xs font-black uppercase tracking-widest text-primary-400">Total</span>
                 <span className="text-2xl font-black">{formatCurrency(total)}</span>
@@ -307,8 +356,8 @@ const Cart = () => {
                 Checkout <ArrowRight size={18} />
               </button>
             ) : (
-              <button form="checkout-form" type="submit" className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black uppercase tracking-widest text-sm flex items-center justify-center gap-2 hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-900/30 active:scale-[0.98]">
-                Complete Order <CheckCircle2 size={18} />
+              <button form="checkout-form" type="submit" disabled={submitting} className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black uppercase tracking-widest text-sm flex items-center justify-center gap-2 hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-900/30 active:scale-[0.98] disabled:opacity-60">
+                {submitting ? 'Placing Order...' : 'Complete Order'} <CheckCircle2 size={18} />
               </button>
             )}
 

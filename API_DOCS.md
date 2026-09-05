@@ -6,7 +6,7 @@ Base URL: `http://localhost:4000/api` (or proxied via `/api` in frontend)
 
 ### POST /api/auth/register
 
-Register new user.
+Register new user. **Always creates `role: "user"`** — admins are provisioned via the DB seed only.
 
 **Body:**
 ```json
@@ -149,13 +149,16 @@ All cart routes require auth.
 
 ### POST /api/cart/checkout
 
+Requires auth. Send the cart `items` explicitly (the frontend cart is local); if `items` is omitted, the server-side DB cart is used. Stock is verified and decremented in a transaction, and the buyer gets an "Order Confirmed" notification.
+
 **Body:**
 ```json
 {
+  "items": [{ "productId": "clx...", "quantity": 2, "size": "M" }],
   "customerName": "John Doe",
   "email": "john@example.com",
-  "phone": "+213 555 123",
-  "shippingAddress": "123 St, Alger",
+  "phone": "+213555123456",
+  "address": "123 St",
   "wilaya": "16 - Alger",
   "city": "Alger Centre",
   "deliveryMethod": "Desk"
@@ -166,6 +169,8 @@ All cart routes require auth.
 ```json
 { "success": true, "data": { "id": "order-id", "total": 12000, "status": "Processing" } }
 ```
+
+Delivery is computed server-side with the same zone logic as `GET /api/delivery/price`, and the free-shipping threshold comes from `Setting.freeShippingThreshold`.
 
 ## Orders
 
@@ -180,9 +185,11 @@ All cart routes require auth.
 { "status": "Shipped" }
 ```
 
-Valid statuses: `Processing`, `Shipped`, `Delivered`, `Cancelled`
+Valid statuses: `Processing`, `Shipped`, `Delivered`, `Cancelled`. Changing status notifies the order's customer.
 
 ## Notifications
+
+Visibility is scoped: admins see all; customers see only their own (`userId`) plus broadcasts (`userId: null`).
 
 ### GET /api/notifications
 
@@ -194,9 +201,12 @@ Valid statuses: `Processing`, `Shipped`, `Delivered`, `Cancelled`
   "title": "New Order",
   "message": "Order ORD-123 received",
   "type": "success",
-  "orderId": "ORD-123"
+  "orderId": "ORD-123",
+  "userId": "optional-target-user-id"
 }
 ```
+
+Omit `userId` to broadcast to all customers.
 
 ### PATCH /api/notifications/:id/read
 

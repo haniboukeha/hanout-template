@@ -1,11 +1,15 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Search, UserPlus, Mail, MoreHorizontal, TrendingUp, Users } from 'lucide-react';
 import { useOrderStore } from '../../store/useOrderStore';
 import { formatCurrency } from '../../utils';
 
 const Customers = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const { orders } = useOrderStore();
+  const { orders, fetchOrders } = useOrderStore();
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   // Derive customers from orders
   const derivedCustomers = useMemo(() => {

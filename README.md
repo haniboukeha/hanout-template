@@ -61,81 +61,22 @@ cp .env.example .env
 
 - `VITE_API_URL`: API base URL (default `/api` proxies to `http://localhost:4000`)
 - `VITE_BACKEND_URL`: Backend URL for Vite proxy
+- `VITE_ALLOW_MOCK`: `true` to enable offline demo data/auth (default `false`)
+- `VITE_CLOUDINARY_CLOUD_NAME` / `VITE_CLOUDINARY_UPLOAD_PRESET`: enable admin image uploads
 
-## 🔧 Backend Integration
+## 🔧 Backend
 
-Frontend works without backend (mock mode), but is ready for real API.
+A full Express + Prisma (PostgreSQL) backend lives in `/backend` and implements every endpoint above. See `API_DOCS.md` for request/response shapes.
 
-Expected backend endpoints (see `src/lib/api.ts`):
-
-```
-GET    /api/health
-GET    /api/products
-GET    /api/products/categories
-GET    /api/products/:id
-POST   /api/products
-PUT    /api/products/:id
-DELETE /api/products/:id
-
-POST   /api/auth/login
-POST   /api/auth/register
-GET    /api/auth/me
-
-GET    /api/cart
-POST   /api/cart
-PUT    /api/cart/:id
-DELETE /api/cart/:id
-POST   /api/cart/checkout
-
-GET    /api/orders
-GET    /api/orders/:id
-PATCH  /api/orders/:id/status
-
-GET    /api/notifications
-PATCH  /api/notifications/:id/read
-
-GET    /api/settings
-PUT    /api/settings
-
-GET    /api/delivery/price?wilaya=16&method=Desk
+```bash
+cd backend
+cp .env.example .env      # set DATABASE_URL (Neon) + JWT_SECRET + ADMIN_PASSWORD
+npx prisma migrate deploy # apply schema
+npm run seed              # create admin + demo products + settings
+npm run dev               # http://localhost:4000
 ```
 
-### Backend Scaffold (Express + Prisma + SQLite)
-
-A minimal backend can be created as:
-
-```
-/hanout-back-end
-  src/
-    index.ts (Express app)
-    routes/
-    middleware/
-    lib/prisma.ts
-  prisma/
-    schema.prisma
-```
-
-Schema example:
-
-```prisma
-model Product {
-  id          String   @id @default(cuid())
-  name        String
-  description String
-  price       Float
-  imageUrl    String
-  images      Json?
-  category    String
-  stock       Int
-  featured    Boolean @default(false)
-  sizes       Json?
-  rating      Float   @default(4.5)
-  reviewsCount Int    @default(0)
-  createdAt   DateTime @default(now())
-}
-```
-
-Seeding: `npm run seed`
+The frontend uses the backend when reachable and falls back to mock/local data **only** when `VITE_ALLOW_MOCK=true`.
 
 ## 📦 Project Structure
 
@@ -158,11 +99,18 @@ src/
   types/
 ```
 
-## 🔐 Auth Demo
+## 🔐 Auth
 
-- Admin: `admin@hanout.dz` / any password ≥3 chars (or `admin123` for demo)
-- User: any valid email + password ≥3 chars
-- In mock mode, any credentials work; with backend, validates against JWT
+- **Production:** real JWT auth against the backend. Registration always creates `role: "user"`. The admin account is provisioned by the DB seed using `ADMIN_EMAIL` / `ADMIN_PASSWORD` env vars (see `backend/.env.example`).
+- **Offline demo mode:** set `VITE_ALLOW_MOCK=true` in the frontend `.env` to enable mock data + mock login (any email, password ≥ 3 chars; `admin@hanout.dz` becomes admin). **Never enable this in production** — it is off by default.
+
+## 🖼️ Images
+
+Admin product image upload goes to **Cloudinary** (unsigned preset) when `VITE_CLOUDINARY_CLOUD_NAME` + `VITE_CLOUDINARY_UPLOAD_PRESET` are set. Without Cloudinary, uploads are disabled outside demo mode (paste an image URL instead). In demo mode it falls back to base64.
+
+## 🗄️ Database
+
+The backend uses **PostgreSQL** (Neon recommended). SQLite is no longer supported (the schema uses `Json` columns). See `DEPLOYMENT.md` for the full Vercel + Neon + Cloudinary setup.
 
 ## 💳 Payment
 
@@ -177,12 +125,12 @@ Place Payment component in `Cart.tsx` step 3.
 ## 🛠️ Production Checklist
 
 - [x] Loading states & error handling
-- [x] Form validation with messages
-- [x] Image upload via FileReader + URL fallback
-- [x] Stock sync after checkout
+- [x] Form validation with messages (frontend + Zod on backend)
+- [x] Image upload via Cloudinary (base64 only in demo mode)
+- [x] Stock sync after checkout (server transaction)
 - [x] Protected routes with redirect `state.from`
-- [x] Notifications system (admin & user)
-- [x] Settings persistence
+- [x] Notifications system (per-user scoped + admin broadcast)
+- [x] Settings persistence (server-backed)
 - [x] Wishlist with persistence
 - [x] Order history per user
 - [x] Category filtering via API
@@ -192,9 +140,13 @@ Place Payment component in `Cart.tsx` step 3.
 - [x] Error boundary
 - [x] Debounced search
 - [x] Vite proxy + manual chunks
-- [ ] Unit tests (Vitest setup ready)
-- [ ] E2E tests (Playwright)
-- [ ] API documentation (Swagger)
+- [x] **Security:** helmet, CORS allow-list, rate limiting, JWT secret enforced, no email-based admin grant, mass-assignment-safe settings
+- [x] **Real checkout API** (was local-only) + delivery pricing shared with backend
+- [x] **PostgreSQL/Neon** with committed Prisma migration
+- [x] `npm audit` clean (0 vulnerabilities, both apps)
+- [ ] Unit tests (Vitest) — not yet added
+- [ ] E2E tests (Playwright) — not yet added
+- [ ] API documentation (Swagger) — see `API_DOCS.md` for now
 
 ## 📱 Mobile Considerations
 

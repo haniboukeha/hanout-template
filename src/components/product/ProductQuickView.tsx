@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ShoppingCart, Star, CheckCircle2, ChevronLeft, ChevronRight, XCircle, Heart } from 'lucide-react';
 import type { Product } from '../../types';
 import { useCartStore } from '../../store/useCartStore';
@@ -26,13 +26,17 @@ const ProductQuickView: React.FC<ProductQuickViewProps> = ({ product, isOpen, on
   const images = product.images && product.images.length > 0 ? product.images : [product.image];
   const inWishlist = isInWishlist(product.id);
 
-  useEffect(() => {
-    if (isOpen) {
+  // Reset state when the modal opens or switches product (render-time adjustment)
+  const openKey = isOpen ? product.id : null;
+  const [prevOpenKey, setPrevOpenKey] = useState<string | null>(openKey);
+  if (openKey !== prevOpenKey) {
+    setPrevOpenKey(openKey);
+    if (openKey) {
       setSelectedSize(product.sizes?.[0]);
       setActiveImageIndex(0);
       setAdded(false);
     }
-  }, [isOpen, product]);
+  }
 
   const handleAddToCart = () => {
     if (product.sizes && product.sizes.length > 0 && !selectedSize) {

@@ -81,14 +81,23 @@ async function main() {
   await prisma.setting.deleteMany();
 
   // Users
-  const adminPassword = await bcrypt.hash('admin123', 10);
-  const userPassword = await bcrypt.hash('user123', 10);
+  const adminEmail = (process.env.ADMIN_EMAIL || 'admin@hanout.dz').toLowerCase();
+  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+  if (process.env.NODE_ENV === 'production' && !process.env.ADMIN_PASSWORD) {
+    throw new Error('FATAL: set ADMIN_PASSWORD before seeding in production');
+  }
+  if (adminPassword.length < 8) {
+    console.warn('⚠️  WARNING: admin password is weak (<8 chars)');
+  }
+
+  const adminHash = await bcrypt.hash(adminPassword, 10);
+  const userPassword = await bcrypt.hash(process.env.DEMO_USER_PASSWORD || 'user123', 10);
 
   const admin = await prisma.user.create({
     data: {
       name: 'Admin',
-      email: 'admin@hanout.dz',
-      password: adminPassword,
+      email: adminEmail,
+      password: adminHash,
       role: 'admin',
     },
   });

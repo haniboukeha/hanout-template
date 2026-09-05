@@ -7,6 +7,8 @@ import ConfirmDialog from '../../components/common/ConfirmDialog';
 import type { Product } from '../../types';
 import { validateProduct } from '../../lib/validators';
 import { useToastStore } from '../../store/useToastStore';
+import { isCloudinaryConfigured, uploadImageToCloudinary } from '../../lib/cloudinary';
+import { ALLOW_MOCK } from '../../lib/env';
 
 const ProductsManagement = () => {
   const { products, addProduct, updateProduct, deleteProduct, isLoading } = useProductStore();
@@ -15,6 +17,7 @@ const ProductsManagement = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
@@ -71,19 +74,37 @@ const ProductsManagement = () => {
     setIsModalOpen(true);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        addToast({ message: 'Image must be less than 5MB', type: 'error' });
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData({ ...formData, image: reader.result as string });
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      addToast({ message: 'Image must be less than 5MB', type: 'error' });
+      return;
     }
+
+    if (isCloudinaryConfigured()) {
+      setUploading(true);
+      try {
+        const url = await uploadImageToCloudinary(file);
+        setFormData((prev) => ({ ...prev, image: url }));
+        addToast({ message: 'Image uploaded to Cloudinary', type: 'success' });
+      } catch (err) {
+        addToast({ message: err instanceof Error ? err.message : 'Upload failed', type: 'error' });
+      } finally {
+        setUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+      return;
+    }
+
+    // No Cloudinary configured: base64 only in mock/demo mode (bloats DB otherwise)
+    if (!ALLOW_MOCK) {
+      addToast({ message: 'Configure Cloudinary (VITE_CLOUDINARY_*) or paste an image URL', type: 'warning' });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => setFormData((prev) => ({ ...prev, image: reader.result as string }));
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -299,7 +320,7 @@ const ProductsManagement = () => {
                     <div className="w-12 h-12 bg-white rounded-xl border flex items-center justify-center mx-auto text-primary-600">
                       <Upload size={20} />
                     </div>
-                    <p className="font-bold text-slate-900 mt-3 text-sm">Upload Image</p>
+                    <p className="font-bold text-slate-900 mt-3 text-sm">{uploading ? 'Uploading...' : 'Upload Image'}</p>
                     <p className="text-[11px] text-slate-500">Click or drag file (max 5MB)</p>
                   </div>
                 )}

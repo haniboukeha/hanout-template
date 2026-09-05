@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Package, Clock, Truck, CheckCircle2, XCircle, Eye, MapPin, CreditCard } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useOrderStore } from '../../store/useOrderStore';
@@ -9,11 +9,15 @@ import { Link } from 'react-router-dom';
 
 const Orders = () => {
   const { user } = useAuthStore();
-  const { orders, getOrdersByEmail } = useOrderStore();
+  const { orders, getOrdersByEmail, fetchOrders } = useOrderStore();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'All'>('All');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const userOrders = user ? getOrdersByEmail(user.email) : orders;
 

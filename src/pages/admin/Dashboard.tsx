@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { DollarSign, ShoppingBag, Users, ArrowUpRight, ArrowDownRight, TrendingUp, Package, Clock } from 'lucide-react';
 import { useProductStore } from '../../store/useProductStore';
 import { useOrderStore } from '../../store/useOrderStore';
@@ -7,7 +7,11 @@ import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
   const { products } = useProductStore();
-  const { orders } = useOrderStore();
+  const { orders, fetchOrders } = useOrderStore();
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const stats = useMemo(() => {
     // Inventory value based on current stock levels

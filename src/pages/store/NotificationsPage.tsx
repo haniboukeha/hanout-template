@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Bell, CheckCheck, Trash2, Clock, Package, ShoppingBag, AlertCircle, Info } from 'lucide-react';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { cn } from '../../utils';
@@ -11,8 +12,12 @@ const iconMap = {
 };
 
 const NotificationsPage = () => {
-  const { notifications, markAsRead, markAllAsRead, clearRead, clearNotifications, getUnreadCount } = useNotificationStore();
+  const { notifications, markAsRead, markAllAsRead, clearRead, clearNotifications, getUnreadCount, fetchNotifications } = useNotificationStore();
   const unread = getUnreadCount();
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">

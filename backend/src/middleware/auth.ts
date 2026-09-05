@@ -1,7 +1,13 @@
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'hanout-secret-key-change-in-production';
+const isProd = process.env.NODE_ENV === 'production';
+
+if (isProd && !process.env.JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET environment variable must be set in production');
+}
+
+const JWT_SECRET = process.env.JWT_SECRET || 'hanout-dev-secret-not-for-production';
 
 export interface AuthRequest extends Request {
   user?: {

@@ -1,32 +1,37 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Bell, Send, CheckCheck, Trash2, AlertCircle, Info, Package, Users } from 'lucide-react';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { useToastStore } from '../../store/useToastStore';
 import { cn } from '../../utils';
+import type { Notification } from '../../types';
 
 const AdminNotifications = () => {
-  const { notifications, addNotification, markAsRead, markAllAsRead, clearNotifications, getUnreadCount } = useNotificationStore();
+  const { notifications, createNotification, markAsRead, markAllAsRead, clearNotifications, getUnreadCount, fetchNotifications } = useNotificationStore();
   const { addToast } = useToastStore();
-  const [form, setForm] = useState({ title: '', message: '', type: 'info' as const });
+  const [form, setForm] = useState({ title: '', message: '', type: 'info' as Notification['type'] });
+  const [sending, setSending] = useState(false);
 
   const unread = getUnreadCount();
 
-  const handleSend = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
+
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title || !form.message) {
       addToast({ message: 'Title and message are required', type: 'error' });
       return;
     }
-    addNotification({
-      id: `NOT-${Date.now()}`,
-      title: form.title,
-      message: form.message,
-      type: form.type as any,
-      read: false,
-      createdAt: new Date().toISOString(),
-    });
-    addToast({ message: 'Notification sent', type: 'success' });
-    setForm({ title: '', message: '', type: 'info' });
+    setSending(true);
+    const ok = await createNotification({ title: form.title, message: form.message, type: form.type });
+    setSending(false);
+    if (ok) {
+      addToast({ message: 'Notification sent', type: 'success' });
+      setForm({ title: '', message: '', type: 'info' });
+    } else {
+      addToast({ message: 'Failed to send notification', type: 'error' });
+    }
   };
 
   const stats = [
@@ -85,7 +90,7 @@ const AdminNotifications = () => {
                 <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Type</label>
                 <select
                   value={form.type}
-                  onChange={(e) => setForm({ ...form, type: e.target.value as any })}
+                  onChange={(e) => setForm({ ...form, type: e.target.value as Notification['type'] })}
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
                 >
                   <option value="info">Info</option>
@@ -106,8 +111,8 @@ const AdminNotifications = () => {
                 />
               </div>
 
-              <button type="submit" className="w-full btn-primary py-3 flex items-center justify-center gap-2">
-                <Send size={16} /> Send Notification
+              <button type="submit" disabled={sending} className="w-full btn-primary py-3 flex items-center justify-center gap-2 disabled:opacity-60">
+                <Send size={16} /> {sending ? 'Sending...' : 'Send Notification'}
               </button>
             </form>
 
@@ -115,7 +120,7 @@ const AdminNotifications = () => {
               <p className="text-xs font-bold text-slate-500 flex items-center gap-2">
                 <Users size={14} /> Broadcast
               </p>
-              <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">Notifications will be visible to all admin users and can be linked to orders</p>
+              <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">Notifications are broadcast to all customers and admins, and can be linked to orders</p>
             </div>
           </div>
         </div>

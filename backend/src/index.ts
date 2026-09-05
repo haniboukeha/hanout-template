@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import productRoutes from './routes/products.js';
@@ -14,12 +16,35 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 4000;
 
+const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:3000')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+app.set('trust proxy', 1);
+app.use(helmet());
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000'],
+  origin: allowedOrigins,
   credentials: true,
 }));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many attempts, please try again later' },
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 300,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { success: false, message: 'Rate limit exceeded, slow down' },
+});
 
 // Health check
 app.get('/api/health', (_req, res) => {
@@ -27,7 +52,8 @@ app.get('/api/health', (_req, res) => {
 });
 
 // Routes
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api', apiLimiter);
 app.use('/api/products', productRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
@@ -43,13 +69,20 @@ app.use((req, res) => {
 // Error handler
 app.use((err: any, _req: any, res: any, _next: any) => {
   console.error('Unhandled error:', err);
-  res.status(500).json({ success: false, message: err.message || 'Internal server error' });
+  const message = process.env.NODE_ENV === 'production'
+    ? 'Internal server error'
+    : err.message || 'Internal server error';
+  res.status(err.status || 500).json({ success: false, message });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 HANOUT Backend running on http://localhost:${PORT}`);
-  console.log(`📦 API base: http://localhost:${PORT}/api`);
-  console.log(`❤️  Health: http://localhost:${PORT}/api/health`);
-});
+// On Vercel/serverless the function handler exports `app` directly;
+// only bind a port when running as a standalone server.
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`🚀 HANOUT Backend running on http://localhost:${PORT}`);
+    console.log(`📦 API base: http://localhost:${PORT}/api`);
+    console.log(`❤️  Health: http://localhost:${PORT}/api/health`);
+  });
+}
 
 export default app;

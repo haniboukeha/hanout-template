@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Order, OrderStatus } from '../types';
 import { api } from '../lib/api';
+import { ALLOW_MOCK } from '../lib/env';
 
 interface OrderState {
   orders: Order[];
@@ -22,41 +23,43 @@ interface OrderState {
 export const useOrderStore = create<OrderState>()(
   persist(
     (set, get) => ({
-      orders: [
-        {
-          id: 'ORD-7231',
-          customerName: 'Alice Johnson',
-          email: 'alice@example.com',
-          shippingAddress: '123 Maple St, Springfield',
-          phone: '+1 555-0101',
-          items: [],
-          total: 124.5,
-          status: 'Delivered',
-          createdAt: new Date(Date.now() - 172800000).toISOString(),
-        },
-        {
-          id: 'ORD-7230',
-          customerName: 'Bob Smith',
-          email: 'bob@example.com',
-          shippingAddress: '456 Oak Ave, Metropolis',
-          phone: '+1 555-0102',
-          items: [],
-          total: 89.0,
-          status: 'Processing',
-          createdAt: new Date(Date.now() - 86400000).toISOString(),
-        },
-        {
-          id: 'ORD-7229',
-          customerName: 'Charlie Brown',
-          email: 'charlie@example.com',
-          shippingAddress: '789 Pine Rd, Gotham',
-          phone: '+1 555-0103',
-          items: [],
-          total: 350.2,
-          status: 'Shipped',
-          createdAt: new Date(Date.now() - 43200000).toISOString(),
-        },
-      ],
+      orders: ALLOW_MOCK
+        ? [
+            {
+              id: 'ORD-7231',
+              customerName: 'Alice Johnson',
+              email: 'alice@example.com',
+              shippingAddress: '123 Maple St, Springfield',
+              phone: '+1 555-0101',
+              items: [],
+              total: 124.5,
+              status: 'Delivered',
+              createdAt: new Date(Date.now() - 172800000).toISOString(),
+            },
+            {
+              id: 'ORD-7230',
+              customerName: 'Bob Smith',
+              email: 'bob@example.com',
+              shippingAddress: '456 Oak Ave, Metropolis',
+              phone: '+1 555-0102',
+              items: [],
+              total: 89.0,
+              status: 'Processing',
+              createdAt: new Date(Date.now() - 86400000).toISOString(),
+            },
+            {
+              id: 'ORD-7229',
+              customerName: 'Charlie Brown',
+              email: 'charlie@example.com',
+              shippingAddress: '789 Pine Rd, Gotham',
+              phone: '+1 555-0103',
+              items: [],
+              total: 350.2,
+              status: 'Shipped',
+              createdAt: new Date(Date.now() - 43200000).toISOString(),
+            },
+          ]
+        : [],
       isLoading: false,
       error: null,
 
@@ -72,7 +75,15 @@ export const useOrderStore = create<OrderState>()(
               email: o.email || o.user?.email || '',
               shippingAddress: o.shippingAddress || o.address || '',
               phone: o.phone || '',
-              items: o.items || [],
+              items: (o.items || []).map((it: any) => ({
+                ...(it.product || {}),
+                id: it.productId || it.product?.id,
+                image: it.product?.imageUrl || it.product?.image || '',
+                name: it.product?.name || 'Product',
+                price: it.price ?? it.product?.price ?? 0,
+                quantity: it.quantity,
+                selectedSize: it.size || undefined,
+              })),
               total: o.total,
               status: o.status || 'Processing',
               createdAt: o.createdAt,
@@ -82,7 +93,7 @@ export const useOrderStore = create<OrderState>()(
             set({ isLoading: false });
           }
         } catch (err: any) {
-          if (err?.message === 'NETWORK_ERROR') {
+          if (err?.message === 'NETWORK_ERROR' && ALLOW_MOCK) {
             set({ isLoading: false, error: null });
           } else {
             set({ isLoading: false, error: err?.message || 'Failed to fetch orders' });
@@ -96,6 +107,7 @@ export const useOrderStore = create<OrderState>()(
         })),
 
       updateOrderStatus: async (id, status) => {
+        const previous = get().orders;
         // optimistic update
         set((state) => ({
           orders: state.orders.map((o) => (o.id === id ? { ...o, status } : o)),
@@ -103,8 +115,12 @@ export const useOrderStore = create<OrderState>()(
 
         try {
           await api.updateOrderStatus(id, status);
-        } catch {
-          // keep optimistic for mock mode
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : '';
+          if (!(msg === 'NETWORK_ERROR' && ALLOW_MOCK)) {
+            set({ orders: previous }); // revert optimistic update
+            throw err;
+          }
         }
       },
 
@@ -112,10 +128,6 @@ export const useOrderStore = create<OrderState>()(
         set((state) => ({
           orders: state.orders.filter((o) => o.id !== id),
         }));
-        try {
-          // if backend exists, delete
-          // await api.deleteOrder(id);
-        } catch {}
       },
 
       getOrdersByEmail: (email) => {
@@ -139,7 +151,8 @@ export const useOrderStore = create<OrderState>()(
     }),
     {
       name: 'order-storage',
-      version: 2,
+      version: 3,
+      migrate: () => ({ orders: [] }),
       partialize: (state) => ({ orders: state.orders }),
     }
   )

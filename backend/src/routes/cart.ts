@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { authenticate, type AuthRequest } from '../middleware/auth.js';
+import { getDeliveryPrice } from './delivery.js';
 
 const router = Router();
 
@@ -108,39 +109,75 @@ router.delete('/:productId', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
+const checkoutSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        productId: z.string().min(1),
+        quantity: z.number().int().positive(),
+        size: z.string().optional(),
+      })
+    )
+    .min(1)
+    .optional(),
+  customerName: z.string().min(2).max(100),
+  email: z.string().email(),
+  phone: z.string().min(6).max(20),
+  address: z.string().min(5).max(300),
+  wilaya: z.string().min(2).max(100),
+  city: z.string().min(1).max(100),
+  deliveryMethod: z.enum(['Desk', 'Home']),
+});
+
 router.post('/checkout', authenticate, async (req: AuthRequest, res) => {
   try {
-    const { shippingAddress, phone, wilaya, city, deliveryMethod, customerName, email } = req.body;
+    const parsed = checkoutSchema.parse(req.body);
+    const { customerName, email, phone, address, wilaya, city, deliveryMethod } = parsed;
 
-    const cartItems = await prisma.cartItem.findMany({
-      where: { userId: req.user!.id },
-      include: { product: true },
-    });
+    let lineItems: { productId: string; quantity: number; size?: string }[];
 
-    if (cartItems.length === 0) {
+    if (parsed.items && parsed.items.length > 0) {
+      lineItems = parsed.items;
+    } else {
+      const cartItems = await prisma.cartItem.findMany({ where: { userId: req.user!.id } });
+      lineItems = cartItems.map((c) => ({ productId: c.productId, quantity: c.quantity, size: c.size || undefined }));
+    }
+
+    if (lineItems.length === 0) {
       return res.status(400).json({ success: false, message: 'Cart is empty' });
     }
 
-    let total = 0;
-    for (const item of cartItems) {
-      if (item.product.stock < item.quantity) {
-        return res.status(400).json({ success: false, message: `Insufficient stock for ${item.product.name}` });
+    const products = await prisma.product.findMany({
+      where: { id: { in: lineItems.map((i) => i.productId) } },
+    });
+    const productMap = new Map(products.map((p) => [p.id, p]));
+
+    let subtotal = 0;
+    for (const item of lineItems) {
+      const product = productMap.get(item.productId);
+      if (!product) {
+        return res.status(400).json({ success: false, message: `Product ${item.productId} no longer exists` });
       }
-      total += item.product.price * item.quantity;
+      if (product.stock < item.quantity) {
+        return res.status(400).json({ success: false, message: `Insufficient stock for ${product.name}` });
+      }
+      subtotal += product.price * item.quantity;
     }
 
-    // Simplified delivery price logic
-    const deliveryPrice = wilaya === '16' ? (deliveryMethod === 'Desk' ? 300 : 500) : 500;
-    const finalTotal = total > 20000 ? total : total + deliveryPrice;
+    const settings = await prisma.setting.findFirst();
+    const freeThreshold = settings?.freeShippingThreshold ?? 20000;
+    const wilayaId = wilaya.split(' - ')[0];
+    const deliveryPrice = subtotal > freeThreshold ? 0 : getDeliveryPrice(wilayaId, deliveryMethod);
+    const finalTotal = subtotal + deliveryPrice;
 
     const order = await prisma.$transaction(async (tx) => {
       const newOrder = await tx.order.create({
         data: {
           userId: req.user!.id,
-          customerName: customerName || req.user!.email,
-          email: email || req.user!.email,
-          phone: phone || '',
-          shippingAddress: shippingAddress || `${city}, ${wilaya}`,
+          customerName,
+          email,
+          phone,
+          shippingAddress: `${address}, ${city}, ${wilaya} (${deliveryMethod})`,
           total: finalTotal,
           status: 'Processing',
           deliveryMethod,
@@ -149,20 +186,21 @@ router.post('/checkout', authenticate, async (req: AuthRequest, res) => {
         },
       });
 
-      for (const cartItem of cartItems) {
+      for (const item of lineItems) {
+        const product = productMap.get(item.productId)!;
         await tx.orderItem.create({
           data: {
             orderId: newOrder.id,
-            productId: cartItem.productId,
-            quantity: cartItem.quantity,
-            size: cartItem.size,
-            price: cartItem.product.price,
+            productId: item.productId,
+            quantity: item.quantity,
+            size: item.size,
+            price: product.price,
           },
         });
 
         await tx.product.update({
-          where: { id: cartItem.productId },
-          data: { stock: { decrement: cartItem.quantity } },
+          where: { id: item.productId },
+          data: { stock: { decrement: item.quantity } },
         });
       }
 
@@ -170,8 +208,9 @@ router.post('/checkout', authenticate, async (req: AuthRequest, res) => {
 
       await tx.notification.create({
         data: {
-          title: 'New Order Received',
-          message: `${customerName} placed order ${newOrder.id} for ${finalTotal} DA`,
+          userId: req.user!.id,
+          title: 'Order Confirmed',
+          message: `Your order ${newOrder.id} for ${finalTotal} DA has been received`,
           type: 'success',
           orderId: newOrder.id,
         },
@@ -182,6 +221,9 @@ router.post('/checkout', authenticate, async (req: AuthRequest, res) => {
 
     res.status(201).json({ success: true, data: order });
   } catch (err) {
+    if (err instanceof z.ZodError) {
+      return res.status(400).json({ success: false, message: 'Validation failed', errors: err.errors });
+    }
     console.error(err);
     res.status(500).json({ success: false, message: 'Checkout failed' });
   }

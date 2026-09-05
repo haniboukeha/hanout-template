@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Eye, Download, Trash2, Package, MapPin, Phone, Mail, Clock, CheckCircle, Truck, XCircle, ChevronRight, Printer, Share2, Users, ShoppingBag } from 'lucide-react';
 import { useOrderStore } from '../../store/useOrderStore';
 import { formatCurrency, cn } from '../../utils';
@@ -6,11 +6,15 @@ import Modal from '../../components/common/Modal';
 import type { Order, OrderStatus } from '../../types';
 
 const OrdersManagement = () => {
-  const { orders, updateOrderStatus, deleteOrder } = useOrderStore();
+  const { orders, updateOrderStatus, deleteOrder, fetchOrders } = useOrderStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'All'>('All');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const filteredOrders = orders.filter(o => {
     const matchesSearch = o.id.toLowerCase().includes(searchTerm.toLowerCase()) || 

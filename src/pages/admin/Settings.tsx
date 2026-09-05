@@ -1,17 +1,31 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Save, Globe, Bell, Shield, Palette, DollarSign, Truck, Mail, Phone, MapPin, AlertTriangle } from 'lucide-react';
 import { useSettingsStore } from '../../store/useSettingsStore';
 import { useToastStore } from '../../store/useToastStore';
 
 const Settings = () => {
-  const { settings, updateSettings } = useSettingsStore();
+  const { settings, fetchSettings, saveSettings, isLoading } = useSettingsStore();
   const { addToast } = useToastStore();
   const [activeTab, setActiveTab] = useState('general');
   const [localSettings, setLocalSettings] = useState(settings);
+  const [prevSettings, setPrevSettings] = useState(settings);
 
-  const handleSave = () => {
-    updateSettings(localSettings);
-    addToast({ message: 'Settings saved successfully', type: 'success', title: 'Saved' });
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
+
+  if (settings !== prevSettings) {
+    setPrevSettings(settings);
+    setLocalSettings(settings);
+  }
+
+  const handleSave = async () => {
+    const ok = await saveSettings(localSettings);
+    if (ok) {
+      addToast({ message: 'Settings saved successfully', type: 'success', title: 'Saved' });
+    } else {
+      addToast({ message: 'Failed to save settings', type: 'error' });
+    }
   };
 
   const handleChange = (key: string, value: string | number | boolean) => {
@@ -33,8 +47,8 @@ const Settings = () => {
           <h1 className="text-3xl font-black text-slate-900">Settings</h1>
           <p className="text-slate-500 text-sm mt-1">Configure store preferences and system settings</p>
         </div>
-        <button onClick={handleSave} className="btn-primary flex items-center gap-2 px-8 py-3 self-start">
-          <Save size={18} /> Save Changes
+        <button onClick={handleSave} disabled={isLoading} className="btn-primary flex items-center gap-2 px-8 py-3 self-start disabled:opacity-60">
+          <Save size={18} /> {isLoading ? 'Saving...' : 'Save Changes'}
         </button>
       </div>
 

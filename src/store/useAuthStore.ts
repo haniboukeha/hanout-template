@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { api } from '../lib/api';
+import { ALLOW_MOCK } from '../lib/env';
 
 export interface User {
   id: string;
@@ -78,7 +79,7 @@ export const useAuthStore = create<AuthState>()(
                 id: user.id,
                 email: user.email,
                 name: user.name || user.email.split('@')[0],
-                role: user.role || (user.email.toLowerCase() === ADMIN_EMAIL ? 'admin' : 'user'),
+                role: user.role || 'user',
                 avatar: user.avatar,
                 phone: user.phone,
                 address: user.address,
@@ -93,42 +94,36 @@ export const useAuthStore = create<AuthState>()(
             return true;
           } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : '';
-            if (msg !== 'NETWORK_ERROR') {
-              // Backend returned error - surface it if not network
-              // But for demo purposes allow mock login if password is not empty
-              if (msg && !msg.includes('Failed to fetch')) {
-                // If backend says invalid credentials, still allow mock for demo
-                // To keep UX smooth, fall through to mock logic
+            // Offline demo mode only: mock login requires VITE_ALLOW_MOCK=true
+            if (msg === 'NETWORK_ERROR' && ALLOW_MOCK) {
+              if (!email || !password) {
+                throw new Error('Email and password are required');
               }
+              if (password.length < 3) {
+                throw new Error('Invalid credentials');
+              }
+
+              const isAdmin = email.toLowerCase().trim() === ADMIN_EMAIL;
+              const name = email.split('@')[0];
+              const mockUser: User = {
+                id: 'u-' + Math.random().toString(36).substring(2, 9),
+                email: email.toLowerCase().trim(),
+                name: name.charAt(0).toUpperCase() + name.slice(1),
+                role: isAdmin ? 'admin' : 'user',
+                createdAt: new Date().toISOString(),
+              };
+
+              set({
+                user: mockUser,
+                token: 'mock-token-' + Date.now(),
+                isAuthenticated: true,
+                isLoading: false,
+                error: null,
+              });
+              return true;
             }
+            throw err;
           }
-
-          // Fallback mock login - accept any non-empty password
-          if (!email || !password) {
-            throw new Error('Email and password are required');
-          }
-          if (password.length < 3) {
-            throw new Error('Invalid credentials');
-          }
-
-          const isAdmin = email.toLowerCase().trim() === ADMIN_EMAIL;
-          const name = email.split('@')[0];
-          const mockUser: User = {
-            id: 'u-' + Math.random().toString(36).substring(2, 9),
-            email: email.toLowerCase().trim(),
-            name: name.charAt(0).toUpperCase() + name.slice(1),
-            role: isAdmin ? 'admin' : 'user',
-            createdAt: new Date().toISOString(),
-          };
-
-          set({
-            user: mockUser,
-            token: 'mock-token-' + Date.now(),
-            isAuthenticated: true,
-            isLoading: false,
-            error: null,
-          });
-          return true;
         } catch (err) {
           const message = err instanceof Error ? err.message : 'Login failed';
           set({ error: message, isLoading: false });
@@ -159,32 +154,30 @@ export const useAuthStore = create<AuthState>()(
             return true;
           } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : '';
-            if (msg !== 'NETWORK_ERROR' && msg && !msg.includes('Failed to fetch')) {
-              // let mock fallback handle
+            if (msg === 'NETWORK_ERROR' && ALLOW_MOCK) {
+              if (!name || !email || !password) {
+                throw new Error('All fields are required');
+              }
+
+              const mockUser: User = {
+                id: 'u-' + Math.random().toString(36).substring(2, 9),
+                email: email.toLowerCase().trim(),
+                name: name.trim(),
+                role: 'user',
+                createdAt: new Date().toISOString(),
+              };
+
+              set({
+                user: mockUser,
+                token: 'mock-token-' + Date.now(),
+                isAuthenticated: true,
+                isLoading: false,
+                error: null,
+              });
+              return true;
             }
+            throw err;
           }
-
-          // Mock registration
-          if (!name || !email || !password) {
-            throw new Error('All fields are required');
-          }
-
-          const mockUser: User = {
-            id: 'u-' + Math.random().toString(36).substring(2, 9),
-            email: email.toLowerCase().trim(),
-            name: name.trim(),
-            role: 'user',
-            createdAt: new Date().toISOString(),
-          };
-
-          set({
-            user: mockUser,
-            token: 'mock-token-' + Date.now(),
-            isAuthenticated: true,
-            isLoading: false,
-            error: null,
-          });
-          return true;
         } catch (err) {
           const message = err instanceof Error ? err.message : 'Registration failed';
           set({ error: message, isLoading: false });
@@ -210,7 +203,11 @@ export const useAuthStore = create<AuthState>()(
       checkSession: async () => {
         const { token, user } = get();
         if (!token || !user) return;
-        // Try to validate token with backend
+        // Mock sessions are only valid when mock mode is explicitly allowed
+        if (String(token).startsWith('mock-token-') && !ALLOW_MOCK) {
+          get().logout();
+          return;
+        }
         try {
           const res = await api.me();
           if (res.data) {
@@ -227,14 +224,19 @@ export const useAuthStore = create<AuthState>()(
               },
             });
           }
-        } catch {
-          // token invalid or backend unavailable - keep current session for mock mode
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : '';
+          const offline = msg === 'NETWORK_ERROR' || msg.includes('Failed to fetch');
+          if (offline && ALLOW_MOCK) return; // keep local session in demo mode
+          if (offline) return; // backend temporarily unreachable - keep session, token revalidated next load
+          get().logout(); // token rejected by backend
         }
       },
     }),
     {
       name: 'auth-storage',
-      version: 2,
+      version: 3,
+      migrate: () => ({}),
       partialize: (state) => ({
         user: state.user,
         token: state.token,

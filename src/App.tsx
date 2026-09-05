@@ -33,15 +33,18 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import ToastContainer from './components/common/Toast';
 import { useAuthStore } from './store/useAuthStore';
 import { useProductStore } from './store/useProductStore';
+import { useSettingsStore } from './store/useSettingsStore';
 
 const App = () => {
   const { checkSession } = useAuthStore();
   const { fetchProducts } = useProductStore();
+  const { fetchSettings } = useSettingsStore();
 
   useEffect(() => {
     // Check auth session on app start
     checkSession();
     fetchProducts();
+    fetchSettings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

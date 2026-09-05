@@ -177,6 +177,10 @@ class ApiClient {
     return this.request<any[]>(`/notifications`);
   }
 
+  async createNotification(payload: { title: string; message: string; type?: string; orderId?: string; userId?: string }) {
+    return this.request<any>(`/notifications`, { method: 'POST', body: payload });
+  }
+
   async markNotificationRead(id: string) {
     return this.request<any>(`/notifications/${id}/read`, { method: 'PATCH' });
   }

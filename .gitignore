@@ -12,6 +12,18 @@ dist
 dist-ssr
 *.local
 
+# Environment files - never commit secrets
+.env
+.env.local
+.env.*.local
+backend/.env
+backend/.env.local
+
+# Database artifacts
+backend/prisma/*.db
+backend/prisma/*.db-journal
+backend/dist/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

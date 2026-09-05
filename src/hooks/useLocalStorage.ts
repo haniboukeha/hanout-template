@@ -25,7 +25,9 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
       if (e.key === key && e.newValue) {
         try {
           setStoredValue(JSON.parse(e.newValue));
-        } catch {}
+        } catch {
+          // ignore malformed JSON from other tabs
+        }
       }
     };
 

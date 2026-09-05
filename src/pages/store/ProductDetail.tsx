@@ -23,12 +23,18 @@ const ProductDetail = () => {
 
   const product = id ? getProductById(id) : undefined;
 
+  // Reset per-product selection when navigating to a different product (render-time adjustment)
+  const [prevProductId, setPrevProductId] = useState<string | undefined>(product?.id);
+  if (product?.id !== prevProductId) {
+    setPrevProductId(product?.id);
+    setSelectedSize(product?.sizes?.[0]);
+    setActiveImage(0);
+    setQuantity(1);
+  }
+
   useEffect(() => {
-    if (product?.sizes?.[0]) {
-      setSelectedSize(product.sizes[0]);
-    }
     window.scrollTo(0, 0);
-  }, [product]);
+  }, [id]);
 
   if (!product) {
     // Try to find loading state - if product not found and we have products, show 404

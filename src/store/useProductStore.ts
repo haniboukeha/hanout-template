@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import type { Product } from '../types';
 import { MOCK_PRODUCTS } from '../mockData';
 import { api } from '../lib/api';
+import { ALLOW_MOCK } from '../lib/env';
 
 interface ProductState {
   products: Product[];
@@ -53,8 +54,8 @@ function normalizeBackendProduct(p: any): Product {
 export const useProductStore = create<ProductState>()(
   persist(
     (set, get) => ({
-      products: MOCK_PRODUCTS,
-      categories: Array.from(new Set(MOCK_PRODUCTS.map((p) => p.category))),
+      products: ALLOW_MOCK ? MOCK_PRODUCTS : [],
+      categories: ALLOW_MOCK ? Array.from(new Set(MOCK_PRODUCTS.map((p) => p.category))) : [],
       isLoading: false,
       error: null,
       searchQuery: '',
@@ -77,8 +78,11 @@ export const useProductStore = create<ProductState>()(
           }
         } catch (err: any) {
           if (err?.message === 'NETWORK_ERROR') {
-            // fallback silently to mock data
-            set({ isLoading: false, error: null });
+            if (ALLOW_MOCK) {
+              set({ isLoading: false, error: null });
+            } else {
+              set({ isLoading: false, error: 'Backend unreachable. Set VITE_API_URL or enable mock mode.' });
+            }
           } else {
             set({ isLoading: false, error: err?.message || 'Failed to fetch products' });
           }
@@ -115,8 +119,9 @@ export const useProductStore = create<ProductState>()(
               isLoading: false,
             }));
             return;
-          } catch {
-            // fallback to local
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : '';
+            if (!(msg === 'NETWORK_ERROR' && ALLOW_MOCK)) throw err;
           }
 
           const productWithId: Product = {
@@ -155,8 +160,9 @@ export const useProductStore = create<ProductState>()(
               isLoading: false,
             }));
             return;
-          } catch {
-            // fallback
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : '';
+            if (!(msg === 'NETWORK_ERROR' && ALLOW_MOCK)) throw err;
           }
 
           set((state) => ({
@@ -176,8 +182,9 @@ export const useProductStore = create<ProductState>()(
         try {
           try {
             await api.deleteProduct(productId);
-          } catch {
-            // ignore network, still delete locally
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : '';
+            if (!(msg === 'NETWORK_ERROR' && ALLOW_MOCK)) throw err;
           }
           set((state) => ({
             products: state.products.filter((p) => p.id !== productId),
@@ -217,7 +224,8 @@ export const useProductStore = create<ProductState>()(
     }),
     {
       name: 'product-storage',
-      version: 2,
+      version: 3,
+      migrate: () => ({ products: [], categories: [] }),
       partialize: (state) => ({ products: state.products }),
     }
   )

@@ -35,9 +35,6 @@ export default defineConfig(({ mode }) => {
               if (id.includes('framer-motion') || id.includes('zustand') || id.includes('lucide')) {
                 return 'ui'
               }
-              if (id.includes('@tanstack')) {
-                return 'query'
-              }
               return 'vendor'
             }
           },

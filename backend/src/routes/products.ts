@@ -65,7 +65,7 @@ router.get('/categories', async (_req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
-    const product = await prisma.product.findUnique({ where: { id: req.params.id } });
+    const product = await prisma.product.findUnique({ where: { id: String(req.params.id) } });
     if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
     res.json({ success: true, data: product });
   } catch (err) {
@@ -109,11 +109,11 @@ router.put('/:id', authenticate, authorizeAdmin, async (req: AuthRequest, res) =
   try {
     const data = productSchema.partial().parse(req.body);
 
-    const existing = await prisma.product.findUnique({ where: { id: req.params.id } });
+    const existing = await prisma.product.findUnique({ where: { id: String(req.params.id) } });
     if (!existing) return res.status(404).json({ success: false, message: 'Product not found' });
 
     const updated = await prisma.product.update({
-      where: { id: req.params.id },
+      where: { id: String(req.params.id) },
       data: {
         name: data.name,
         description: data.description,
@@ -141,7 +141,7 @@ router.put('/:id', authenticate, authorizeAdmin, async (req: AuthRequest, res) =
 
 router.delete('/:id', authenticate, authorizeAdmin, async (req: AuthRequest, res) => {
   try {
-    await prisma.product.delete({ where: { id: req.params.id } });
+    await prisma.product.delete({ where: { id: String(req.params.id) } });
     res.json({ success: true, message: 'Product deleted' });
   } catch (err) {
     console.error(err);

@@ -27,14 +27,13 @@ router.post('/register', async (req, res) => {
     }
 
     const hashed = await bcrypt.hash(password, 10);
-    const isAdmin = email.toLowerCase() === 'admin@hanout.dz';
 
     const user = await prisma.user.create({
       data: {
         name,
         email: email.toLowerCase(),
         password: hashed,
-        role: isAdmin ? 'admin' : 'user',
+        role: 'user',
       },
     });
 
